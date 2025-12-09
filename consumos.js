@@ -16,6 +16,9 @@ function changeConsumosMes(delta) {
 
 function renderConsumos() {
   try {
+    // Inicializar botones si no se ha hecho
+    initConsumosBotones();
+    
     const [year, month] = currentConsumosMes.split('-');
     const mesLabel = new Date(year, month - 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
     
@@ -338,26 +341,37 @@ function renderConsumosChart() {
   }
 }
 
-// Inicializar botones de navegación cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-  setTimeout(function() {
-    const prevBtn = document.getElementById('consumos-prev');
-    const nextBtn = document.getElementById('consumos-next');
+// Inicializar botones - se llama desde initConsumosBotones()
+let consumosBotonesInit = false;
+
+function initConsumosBotones() {
+  if (consumosBotonesInit) return; // Solo inicializar una vez
+  
+  const prevBtn = document.getElementById('consumos-prev');
+  const nextBtn = document.getElementById('consumos-next');
+  
+  if (prevBtn && nextBtn) {
+    prevBtn.onclick = function(e) {
+      e.preventDefault();
+      changeConsumosMes(-1);
+      return false;
+    };
     
-    if (prevBtn) {
-      prevBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        changeConsumosMes(-1);
-      });
-    }
+    nextBtn.onclick = function(e) {
+      e.preventDefault();
+      changeConsumosMes(1);
+      return false;
+    };
     
-    if (nextBtn) {
-      nextBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        changeConsumosMes(1);
-      });
-    }
-  }, 500);
-});
+    consumosBotonesInit = true;
+    console.log('Botones de consumos inicializados');
+  }
+}
+
+// Intentar inicializar cuando se carga el script
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initConsumosBotones);
+} else {
+  // DOM ya está listo
+  setTimeout(initConsumosBotones, 100);
+}
