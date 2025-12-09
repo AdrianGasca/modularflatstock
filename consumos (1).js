@@ -2,16 +2,25 @@
 // CONSUMOS MENSUALES
 // ===============================================
 
-function changeConsumosMes(delta) {
+function changeConsumosMes(delta, event) {
+  // Prevenir scroll u otros comportamientos
+  const e = event || window.event;
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  
   try {
     const [year, month] = currentConsumosMes.split('-').map(Number);
     const newDate = new Date(year, month - 1 + delta, 1);
     currentConsumosMes = newDate.toISOString().slice(0, 7);
-    console.log('Cambiando a mes:', currentConsumosMes);
+    console.log('Mes actual:', currentConsumosMes);
     renderConsumos();
   } catch (err) {
     console.error('Error en changeConsumosMes:', err);
   }
+  
+  return false; // Prevenir comportamiento por defecto
 }
 
 function renderConsumos() {
@@ -61,7 +70,7 @@ function renderConsumos() {
   }
 }
 
-function calcGastosMes(mes) {
+function calcGastosMes(mes, silencioso = false) {
   const [year, month] = mes.split('-').map(Number);
   const inicioMes = new Date(year, month - 1, 1);
   const finMes = new Date(year, month, 0, 23, 59, 59);
@@ -102,7 +111,10 @@ function calcGastosMes(mes) {
     });
   }
   
-  console.log('Reservas en el mes:', mes, reservasMes.length);
+  // Solo loguear si no es silencioso (para el gráfico)
+  if (!silencioso) {
+    console.log('Reservas en el mes:', mes, reservasMes.length);
+  }
   
   let total = 0, gestor = 0, propietario = 0;
   const desglose = [];
@@ -294,7 +306,7 @@ function renderConsumosChart() {
       const mesKey = d.toISOString().slice(0, 7);
       const mesLabel = d.toLocaleDateString('es-ES', { month: 'short' });
       meses.push(mesLabel);
-      valores.push(calcGastosMes(mesKey).total);
+      valores.push(calcGastosMes(mesKey, true).total); // silencioso = true
     }
     
     const context = ctx.getContext('2d');

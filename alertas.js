@@ -64,10 +64,18 @@ function updateForecastBadges() {
 }
 
 function changeMonth(delta) {
+  const e = window.event;
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  
   const [year, month] = currentLimpiezasMes.split('-').map(Number);
   const newDate = new Date(year, month - 1 + delta, 1);
   currentLimpiezasMes = newDate.toISOString().slice(0, 7);
   renderLimpiezasMes();
+  
+  return false;
 }
 
 function renderLimpiezasMes() {
