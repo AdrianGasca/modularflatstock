@@ -767,9 +767,9 @@ Cargando estado del inventario...</div>
           <div class="card-header">
             <h3 class="card-title">🧹 Limpiezas del Mes</h3>
             <div style="display:flex; gap:10px; align-items:center;">
-              <button class="btn btn-secondary btn-sm" onclick="changeMonth(-1)">◀ Anterior</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="return changeMonth(-1)">◀ Anterior</button>
               <span id="limpiezas-mes-label" style="font-weight:600; min-width:120px; text-align:center;">Diciembre 2024</span>
-              <button class="btn btn-secondary btn-sm" onclick="changeMonth(1)">Siguiente ▶</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="return changeMonth(1)">Siguiente ▶</button>
             </div>
           </div>
           <div class="filters-bar">
@@ -821,9 +821,9 @@ Cargando estado del inventario...</div>
           <div class="card-header">
             <h3 class="card-title">💰 Consumos del Mes</h3>
             <div style="display:flex; gap:10px; align-items:center;">
-              <button class="btn btn-secondary btn-sm" onclick="changeConsumosMes(-1)">◀ Anterior</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="return changeConsumosMes(-1)">◀ Anterior</button>
               <span id="consumos-mes-label" style="font-weight:600; min-width:120px; text-align:center;">Diciembre 2024</span>
-              <button class="btn btn-secondary btn-sm" onclick="changeConsumosMes(1)">Siguiente ▶</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="return changeConsumosMes(1)">Siguiente ▶</button>
             </div>
           </div>
           <div class="stats-grid">
