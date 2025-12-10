@@ -592,8 +592,11 @@
         <div class="card">
           <div class="card-header">
             <h3 class="card-title">🎁 Kits de Productos</h3>
-            <button class="btn btn-primary" onclick="openModal('modal-kit')">+ Nuevo Kit</button>
+            <button class="btn btn-primary" onclick="newKit()">+ Nuevo Kit</button>
           </div>
+          <p style="padding:0 16px; color:var(--text-muted); font-size:0.85rem; margin-bottom:16px;">
+            Los kits definen qué productos se consumen automáticamente con cada servicio de limpieza.
+          </p>
           <div id="kits-grid" class="grid-cards"></div>
         </div>
       </div>
@@ -1464,19 +1467,52 @@ Selecciona un tipo de informe y haz clic en generar para ver la vista previa.
 
 <!-- Modal Kit -->
 <div id="modal-kit" class="modal-overlay">
-  <div class="modal">
+  <div class="modal" style="max-width: 600px;">
     <div class="modal-header">
-      <h3 class="modal-title">🎁 Nuevo Kit</h3>
+      <h3 class="modal-title" id="kit-modal-title">🎁 Nuevo Kit</h3>
       <button class="modal-close" onclick="closeModal('modal-kit')">×</button>
     </div>
     <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">Nombre *</label>
-        <input type="text" id="kit-nombre" class="form-input">
+      <input type="hidden" id="kit-edit-id">
+      
+      <div class="form-row">
+        <div class="form-group" style="flex:2;">
+          <label class="form-label">Nombre del Kit *</label>
+          <input type="text" id="kit-nombre" class="form-input" placeholder="Ej: Kit Bienvenida, Kit Limpieza Básica">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Se consume por</label>
+          <select id="kit-consumo-tipo" class="form-input">
+            <option value="servicio">🧹 Cada Servicio</option>
+            <option value="checkout">🔴 Solo Checkout</option>
+            <option value="checkin">🟢 Solo Check-in</option>
+            <option value="manual">✋ Manual</option>
+          </select>
+        </div>
       </div>
+      
       <div class="form-group">
         <label class="form-label">Descripción</label>
-        <input type="text" id="kit-desc" class="form-input">
+        <input type="text" id="kit-desc" class="form-input" placeholder="Descripción opcional del kit">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Propiedades donde se usa</label>
+        <select id="kit-propiedades-tipo" class="form-input" onchange="toggleKitPropiedades()">
+          <option value="todas">✅ Todas las propiedades</option>
+          <option value="especificas">📍 Propiedades específicas</option>
+        </select>
+        <div id="kit-propiedades-lista" style="display:none; margin-top:10px; max-height:120px; overflow-y:auto; background:var(--bg-input); border-radius:var(--radius-sm); padding:12px;">
+          <!-- Se llena dinámicamente -->
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Productos incluidos</label>
+        <div id="kit-productos-lista" style="max-height:200px; overflow-y:auto; background:var(--bg-input); border-radius:var(--radius-sm); padding:12px;">
+          <p style="color:var(--text-muted); font-size:0.85rem;">Cargando productos...</p>
+        </div>
+        <small style="color:var(--text-muted);">Indica la cantidad de cada producto que se consume por kit</small>
       </div>
     </div>
     <div class="modal-footer">
