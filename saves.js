@@ -165,19 +165,176 @@ async function saveEmpleado() {
   initFilters();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// KITS - FUNCIONES COMPLETAS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function newKit() {
+  $('#kit-edit-id').value = '';
+  $('#kit-modal-title').textContent = '🎁 Nuevo Kit';
+  $('#kit-nombre').value = '';
+  $('#kit-desc').value = '';
+  $('#kit-consumo-tipo').value = 'servicio';
+  $('#kit-propiedades-tipo').value = 'todas';
+  $('#kit-propiedades-lista').style.display = 'none';
+  
+  populateKitProductos({});
+  populateKitPropiedades([]);
+  openModal('modal-kit');
+}
+
+function editKit(id) {
+  const kit = S.kits.find(k => String(k.id) === String(id));
+  if (!kit) return toast('Kit no encontrado', 'error');
+  
+  $('#kit-edit-id').value = id;
+  $('#kit-modal-title').textContent = '🎁 Editar Kit';
+  $('#kit-nombre').value = kit.nombre || '';
+  $('#kit-desc').value = kit.descripcion || '';
+  $('#kit-consumo-tipo').value = kit.consumo_tipo || 'servicio';
+  $('#kit-propiedades-tipo').value = kit.propiedades_tipo || 'todas';
+  
+  // Mostrar/ocultar lista de propiedades
+  if (kit.propiedades_tipo === 'especificas') {
+    $('#kit-propiedades-lista').style.display = 'block';
+  } else {
+    $('#kit-propiedades-lista').style.display = 'none';
+  }
+  
+  // Productos del kit: { "producto_id": cantidad, ... }
+  const productosKit = kit.productos || {};
+  populateKitProductos(productosKit);
+  
+  // Propiedades seleccionadas
+  const propiedadesKit = kit.propiedades || [];
+  populateKitPropiedades(propiedadesKit);
+  
+  openModal('modal-kit');
+}
+
+function populateKitProductos(productosKit) {
+  const container = $('#kit-productos-lista');
+  if (!container) return;
+  
+  if (!S.inventario || S.inventario.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted);">No hay productos en inventario. Añade productos primero.</p>';
+    return;
+  }
+  
+  container.innerHTML = S.inventario.map(p => {
+    const cantidad = productosKit[p.id] || 0;
+    const nombre = p.item || p.nombre || 'Sin nombre';  // Campo correcto es 'item'
+    return `
+      <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border);">
+        <input type="number" 
+               class="form-input kit-prod-qty" 
+               data-prod-id="${p.id}" 
+               value="${cantidad}" 
+               min="0" 
+               step="1"
+               style="width:70px; text-align:center;">
+        <span style="flex:1;">${nombre}</span>
+        <span style="color:var(--text-muted); font-size:0.8rem;">${p.unidad || 'ud'}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function populateKitPropiedades(propiedadesSeleccionadas) {
+  const container = $('#kit-propiedades-lista');
+  if (!container) return;
+  
+  if (!S.propiedades || S.propiedades.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted);">No hay propiedades configuradas.</p>';
+    return;
+  }
+  
+  container.innerHTML = S.propiedades.map(p => {
+    const nombre = p.propiedad_nombre || p.nombre;
+    const checked = propiedadesSeleccionadas.includes(String(p.id)) ? 'checked' : '';
+    return `
+      <label style="display:flex; align-items:center; gap:8px; padding:6px 0; cursor:pointer;">
+        <input type="checkbox" class="kit-prop-check" data-prop-id="${p.id}" ${checked}>
+        <span>${nombre}</span>
+      </label>
+    `;
+  }).join('');
+}
+
+function toggleKitPropiedades() {
+  const tipo = $('#kit-propiedades-tipo').value;
+  const lista = $('#kit-propiedades-lista');
+  if (tipo === 'especificas') {
+    lista.style.display = 'block';
+    populateKitPropiedades([]);
+  } else {
+    lista.style.display = 'none';
+  }
+}
+
 async function saveKit() {
+  const editId = $('#kit-edit-id').value;
+  const nombre = $('#kit-nombre').value.trim();
+  
+  if (!nombre) return toast('Nombre obligatorio', 'error');
+  
+  // Recoger productos con cantidad > 0
+  const productos = {};
+  document.querySelectorAll('.kit-prod-qty').forEach(input => {
+    const qty = parseInt(input.value) || 0;
+    if (qty > 0) {
+      productos[input.dataset.prodId] = qty;
+    }
+  });
+  
+  // Recoger propiedades seleccionadas
+  const propiedadesTipo = $('#kit-propiedades-tipo').value;
+  const propiedades = [];
+  if (propiedadesTipo === 'especificas') {
+    document.querySelectorAll('.kit-prop-check:checked').forEach(cb => {
+      propiedades.push(cb.dataset.propId);
+    });
+  }
+  
   const data = {
     cliente_email: S.clienteEmail,
-    nombre: $('#kit-nombre').value.trim(),
-    descripcion: $('#kit-desc').value.trim()
+    nombre: nombre,
+    descripcion: $('#kit-desc').value.trim() || null,
+    consumo_tipo: $('#kit-consumo-tipo').value,
+    propiedades_tipo: propiedadesTipo,
+    propiedades: propiedades.length > 0 ? propiedades : null,
+    productos: Object.keys(productos).length > 0 ? productos : null
   };
-  if (!data.nombre) return toast('Nombre obligatorio', 'error');
   
   closeModal('modal-kit');
-  await create(TBL.kits, data);
-  await loadAll();
-  renderKits();
-  toast('Kit creado');
+  
+  try {
+    if (editId) {
+      await update(TBL.kits, editId, data);
+      toast('Kit actualizado');
+    } else {
+      await create(TBL.kits, data);
+      toast('Kit creado');
+    }
+    await loadAll();
+    renderKits();
+  } catch (e) {
+    console.error(e);
+    toast('Error al guardar kit', 'error');
+  }
+}
+
+async function deleteKit(id) {
+  if (!confirm('¿Eliminar este kit?')) return;
+  
+  try {
+    await remove(TBL.kits, id);
+    await loadAll();
+    renderKits();
+    toast('Kit eliminado');
+  } catch (e) {
+    toast('Error al eliminar', 'error');
+  }
 }
 
 async function saveExtra() {
