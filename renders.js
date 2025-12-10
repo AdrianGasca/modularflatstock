@@ -165,12 +165,36 @@ async function syncAllReservas() {
   toast('✅ Sincronización completada');
 }
 function renderKits() {
-  $('#kits-grid').innerHTML = S.kits.length ? S.kits.map(k => `
-    <div class="item-card">
-      <div class="item-card-title">${k.nombre}</div>
-      <div class="item-card-meta">${k.descripcion || ''}</div>
+  const consumoLabels = {
+    'servicio': '🧹 Cada Servicio',
+    'checkout': '🔴 Checkout',
+    'checkin': '🟢 Check-in',
+    'manual': '✋ Manual'
+  };
+  
+  $('#kits-grid').innerHTML = S.kits.length ? S.kits.map(k => {
+    const productos = k.productos || [];
+    const numProductos = Array.isArray(productos) ? productos.length : 0;
+    const consumoTipo = k.consumo_tipo || 'servicio';
+    const propTipo = k.propiedades_tipo || 'todas';
+    
+    return `
+    <div class="item-card" style="cursor:pointer;" onclick="editKit('${k.id}')">
+      <div class="item-card-header">
+        <div class="item-card-title">🎁 ${k.nombre}</div>
+        <span class="badge badge-accent">${consumoLabels[consumoTipo] || consumoTipo}</span>
+      </div>
+      <div class="item-card-meta" style="display:flex; flex-direction:column; gap:4px;">
+        ${k.descripcion ? `<span>${k.descripcion}</span>` : ''}
+        <span>📦 ${numProductos} producto${numProductos !== 1 ? 's' : ''}</span>
+        <span>${propTipo === 'todas' ? '🏠 Todas las propiedades' : '📍 Propiedades específicas'}</span>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); editKit('${k.id}')">✏️ Editar</button>
+        <button class="btn btn-sm" style="background:#fee2e2; color:#b91c1c;" onclick="event.stopPropagation(); deleteKit('${k.id}')">🗑️</button>
+      </div>
     </div>
-  `).join('') : empty('🎁', 'Sin kits');
+  `}).join('') : empty('🎁', 'Sin kits configurados');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
