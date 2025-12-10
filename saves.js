@@ -7,19 +7,40 @@ async function saveServicio() {
   const empSel = $('#serv-empleado');
   const empOpt = empSel.options[empSel.selectedIndex];
   
+  // Buscar propiedad para obtener tiempo de limpieza y otros datos
+  const propNombre = propSel.value;
+  const prop = S.propiedades?.find(p => 
+    (p.propiedad_nombre || p.nombre) === propNombre
+  );
+  
+  // Duración: usar la del input, o la de la propiedad, o default 60
+  let duracion = parseInt($('#serv-duracion')?.value) || 0;
+  if (!duracion && prop) {
+    duracion = prop.tiempo_limpieza || 60;
+  }
+  if (!duracion) duracion = 60;
+  
+  // Precio: usar el del input, o el de la propiedad
+  let precio = parseFloat($('#serv-precio').value) || 0;
+  if (!precio && prop) {
+    precio = prop.precio_limpieza || 0;
+  }
+  
   const data = {
     cliente_email: S.clienteEmail,
-    propiedad_nombre: propSel.value,
+    propiedad_nombre: propNombre,
+    propiedad_id: prop?.id || null,
     tipo_servicio: $('#serv-tipo').value,
     fecha_servicio: $('#serv-fecha-input').value,
     hora_inicio: $('#serv-hora').value || null,
+    duracion_minutos: duracion,
     check_in: $('#serv-checkin').value || null,
     check_out: $('#serv-checkout').value || null,
     huesped_nombre: $('#serv-huesped').value.trim() || null,
     num_huespedes: parseInt($('#serv-num-huespedes').value) || 2,
     empleado_id: empSel.value || null,
     empleado_nombre: empOpt?.text !== 'Sin asignar' ? empOpt?.text : null,
-    precio: parseFloat($('#serv-precio').value) || null,
+    precio: precio,
     estado: $('#serv-estado-sel').value,
     prioridad: $('#serv-prioridad').value,
     notas: $('#serv-notas').value.trim() || null
@@ -51,20 +72,43 @@ async function saveServicio() {
 }
 
 async function savePropiedad() {
+  const editId = $('#prop-edit-id')?.value;
+  const source = $('#prop-source')?.value || 'manual';
+  
   const data = {
     cliente_email: S.clienteEmail,
     propiedad_nombre: $('#prop-nombre').value.trim(),
-    precio_limpieza: parseFloat($('#prop-precio').value) || 0
+    direccion: $('#prop-direccion').value.trim() || null,
+    habitaciones: parseInt($('#prop-habitaciones').value) || 1,
+    banos: parseInt($('#prop-banos').value) || 1,
+    precio_limpieza: parseFloat($('#prop-precio').value) || 0,
+    tiempo_limpieza: parseInt($('#prop-tiempo').value) || 90,
+    propietario_id: $('#prop-propietario').value || null,
+    notas: $('#prop-notas').value.trim() || null
   };
+  
   if (!data.propiedad_nombre) return toast('Nombre obligatorio', 'error');
   
   closeModal('modal-propiedad');
-  await create(TBL.propiedades, data);
-  await loadAll();
-  renderPropiedades();
-  renderDashboard();
-  initFilters();
-  toast('Propiedad creada');
+  
+  try {
+    if (editId) {
+      // Edición
+      await update(TBL.propiedades, editId, data);
+      toast('Propiedad actualizada');
+    } else {
+      // Creación
+      await create(TBL.propiedades, data);
+      toast('Propiedad creada');
+    }
+    
+    await loadAll();
+    renderPropiedades();
+    renderDashboard();
+    initFilters();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
 }
 
 async function savePropietario() {
@@ -241,6 +285,7 @@ function editServicio(id) {
   $('#serv-tipo').value = s.tipo_servicio || 'checkout';
   $('#serv-fecha-input').value = s.fecha_servicio;
   $('#serv-hora').value = s.hora_inicio || '';
+  $('#serv-duracion').value = s.duracion_minutos || '';
   $('#serv-checkin').value = s.check_in || '';
   $('#serv-checkout').value = s.check_out || '';
   $('#serv-huesped').value = s.huesped_nombre || '';
@@ -250,6 +295,27 @@ function editServicio(id) {
   $('#serv-estado-sel').value = s.estado || 'pendiente';
   $('#serv-prioridad').value = s.prioridad || 'normal';
   $('#serv-notas').value = s.notas || '';
+  
+  openModal('modal-servicio');
+}
+
+// Limpiar modal de servicio para nuevo
+function newServicio() {
+  $('#serv-edit-id').value = '';
+  $('#serv-propiedad-sel').value = '';
+  $('#serv-tipo').value = 'checkout';
+  $('#serv-fecha-input').value = new Date().toISOString().split('T')[0];
+  $('#serv-hora').value = '11:00';
+  $('#serv-duracion').value = '';
+  $('#serv-checkin').value = '';
+  $('#serv-checkout').value = '';
+  $('#serv-huesped').value = '';
+  $('#serv-num-huespedes').value = 2;
+  $('#serv-empleado').value = '';
+  $('#serv-precio').value = '';
+  $('#serv-estado-sel').value = 'pendiente';
+  $('#serv-prioridad').value = 'normal';
+  $('#serv-notas').value = '';
   
   openModal('modal-servicio');
 }
