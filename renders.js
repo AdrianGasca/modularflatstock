@@ -218,7 +218,7 @@ function renderPropiedades() {
     const name = (p.propiedad_nombre || p.nombre || '').toLowerCase();
     if (search && !name.includes(search)) return false;
     
-    const isManual = !p.external_id;
+    const isManual = p.source === 'manual' || !p.external_id;
     if (sourceFilter === 'manual' && !isManual) return false;
     if (sourceFilter === 'integration' && isManual) return false;
     
@@ -237,7 +237,7 @@ function renderPropiedades() {
     const direccion = p.direccion || '';
     const habitaciones = p.habitaciones || p.total_rooms || 0;
     const banos = p.banos || p.total_bathrooms || 0;
-    const isManual = !p.external_id;
+    const isManual = p.source === 'manual' || !p.external_id;
     const sourceIcon = isManual ? '📝' : '🔗';
     const sourceBadge = isManual 
       ? '<span class="badge badge-neutral">Manual</span>' 
@@ -286,10 +286,14 @@ function newPropiedad() {
 }
 
 function editPropiedad(id) {
-  const prop = S.propiedades.find(p => p.id === id);
-  if (!prop) return toast('Propiedad no encontrada', 'error');
+  // Comparación flexible de ID (puede ser número o string)
+  const prop = S.propiedades.find(p => String(p.id) === String(id));
+  if (!prop) {
+    console.error('Propiedad no encontrada, ID:', id, 'Propiedades:', S.propiedades.map(p => p.id));
+    return toast('Propiedad no encontrada', 'error');
+  }
   
-  const isManual = !prop.external_id;
+  const isManual = prop.source === 'manual' || !prop.external_id;
   
   $('#prop-edit-id').value = id;
   $('#prop-source').value = isManual ? 'manual' : 'integration';
