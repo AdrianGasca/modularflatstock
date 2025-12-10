@@ -62,18 +62,25 @@ function renderServicios() {
   
   list.sort((a, b) => b.fecha_servicio.localeCompare(a.fecha_servicio));
   
+  const formatDuracion = (min) => {
+    if (!min) return '-';
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return h > 0 ? `${h}h${m > 0 ? m + 'm' : ''}` : `${m}m`;
+  };
+  
   $('#servicios-tbody').innerHTML = list.length ? list.map(s => `
     <tr>
       <td>${formatDate(s.fecha_servicio)}</td>
-      <td>${s.hora_inicio || '-'}</td>
+      <td>${s.hora_inicio || '-'} <span style="color:var(--text-muted); font-size:0.8em;">${formatDuracion(s.duracion_minutos)}</span></td>
       <td><strong>${s.propiedad_nombre}</strong></td>
       <td><span class="badge badge-neutral">${s.tipo_servicio || 'checkout'}</span></td>
       <td>${s.huesped_nombre || '-'}</td>
       <td>${s.empleado_nombre || '<span style="color:var(--text-muted)">Sin asignar</span>'}</td>
       <td><span class="badge ${estadoBadge(s.estado)}">${s.estado}</span></td>
       <td>
-        <button class="btn btn-sm btn-secondary" onclick="editServicio(${s.id})">✏️</button>
-        ${s.estado !== 'completado' ? `<button class="btn btn-sm btn-success" onclick="completarServicio(${s.id})">✓</button>` : ''}
+        <button class="btn btn-sm btn-secondary" onclick="editServicio('${s.id}')">✏️</button>
+        ${s.estado !== 'completado' ? `<button class="btn btn-sm btn-success" onclick="completarServicio('${s.id}')">✓</button>` : ''}
       </td>
     </tr>
   `).join('') : '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">Sin servicios</td></tr>';
@@ -166,16 +173,403 @@ function renderKits() {
   `).join('') : empty('🎁', 'Sin kits');
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// PROPIEDADES - FUNCIONES MEJORADAS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function switchPropTab(tab) {
+  const listTab = $('#props-tab-list');
+  const timesTab = $('#props-tab-times');
+  const btnList = $('#tab-props-list');
+  const btnTimes = $('#tab-props-times');
+  
+  if (tab === 'list') {
+    listTab.style.display = 'block';
+    timesTab.style.display = 'none';
+    btnList.style.background = 'var(--primary)';
+    btnList.style.color = 'white';
+    btnList.classList.remove('btn-secondary');
+    btnTimes.style.background = '';
+    btnTimes.style.color = '';
+    btnTimes.classList.add('btn-secondary');
+    renderPropiedades();
+  } else {
+    listTab.style.display = 'none';
+    timesTab.style.display = 'block';
+    btnTimes.style.background = 'var(--primary)';
+    btnTimes.style.color = 'white';
+    btnTimes.classList.remove('btn-secondary');
+    btnList.style.background = '';
+    btnList.style.color = '';
+    btnList.classList.add('btn-secondary');
+    propTiempos.render();
+  }
+}
+
 function renderPropiedades() {
-  $('#propiedades-grid').innerHTML = S.propiedades.length ? S.propiedades.map(p => `
-    <div class="item-card">
+  const search = ($('#props-search')?.value || '').toLowerCase();
+  const sourceFilter = $('#props-filter-source')?.value || '';
+  
+  // Combinar propiedades de config + integración (si hay)
+  let allProps = [...(S.propiedades || [])];
+  
+  // Filtrar
+  let filtered = allProps.filter(p => {
+    const name = (p.propiedad_nombre || p.nombre || '').toLowerCase();
+    if (search && !name.includes(search)) return false;
+    
+    const isManual = !p.external_id;
+    if (sourceFilter === 'manual' && !isManual) return false;
+    if (sourceFilter === 'integration' && isManual) return false;
+    
+    return true;
+  });
+  
+  if (filtered.length === 0) {
+    $('#propiedades-grid').innerHTML = empty('🏠', 'Sin propiedades');
+    return;
+  }
+  
+  $('#propiedades-grid').innerHTML = filtered.map(p => {
+    const nombre = p.propiedad_nombre || p.nombre || 'Sin nombre';
+    const precio = p.precio_limpieza || 0;
+    const tiempo = p.tiempo_limpieza || '-';
+    const direccion = p.direccion || '';
+    const habitaciones = p.habitaciones || p.total_rooms || 0;
+    const banos = p.banos || p.total_bathrooms || 0;
+    const isManual = !p.external_id;
+    const sourceIcon = isManual ? '📝' : '🔗';
+    const sourceBadge = isManual 
+      ? '<span class="badge badge-neutral">Manual</span>' 
+      : '<span class="badge" style="background:#dbeafe;color:#1e40af;">Integración</span>';
+    
+    return `
+    <div class="item-card" style="cursor:pointer;" onclick="editPropiedad('${p.id}')">
       <div class="item-card-header">
-        <div class="item-card-title">${p.propiedad_nombre}</div>
-        <span class="badge badge-neutral">${p.precio_limpieza || 0}€</span>
+        <div class="item-card-title">${sourceIcon} ${nombre}</div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          ${sourceBadge}
+          <span class="badge badge-success">${precio}€</span>
+        </div>
+      </div>
+      <div class="item-card-meta" style="display:flex; flex-direction:column; gap:4px;">
+        ${direccion ? `<span>📍 ${direccion}</span>` : ''}
+        <span>🛏️ ${habitaciones} hab · 🚿 ${banos} baños · ⏱️ ${tiempo} min</span>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); editPropiedad('${p.id}')">✏️ Editar</button>
+        ${isManual ? `<button class="btn btn-sm" style="background:#fee2e2; color:#b91c1c;" onclick="event.stopPropagation(); deletePropiedad('${p.id}')">🗑️</button>` : ''}
       </div>
     </div>
-  `).join('') : empty('🏠', 'Sin propiedades');
+  `}).join('');
 }
+
+function newPropiedad() {
+  $('#prop-edit-id').value = '';
+  $('#prop-source').value = 'manual';
+  $('#prop-modal-title').textContent = '🏠 Nueva Propiedad';
+  $('#prop-nombre').value = '';
+  $('#prop-direccion').value = '';
+  $('#prop-habitaciones').value = '1';
+  $('#prop-banos').value = '1';
+  $('#prop-precio').value = '45';
+  $('#prop-tiempo').value = '90';
+  $('#prop-propietario').value = '';
+  $('#prop-notas').value = '';
+  
+  // Poblar propietarios
+  const propSelect = $('#prop-propietario');
+  propSelect.innerHTML = '<option value="">Sin asignar</option>' + 
+    (S.propietarios || []).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+  
+  openModal('modal-propiedad');
+}
+
+function editPropiedad(id) {
+  const prop = S.propiedades.find(p => p.id === id);
+  if (!prop) return toast('Propiedad no encontrada', 'error');
+  
+  const isManual = !prop.external_id;
+  
+  $('#prop-edit-id').value = id;
+  $('#prop-source').value = isManual ? 'manual' : 'integration';
+  $('#prop-modal-title').textContent = '🏠 Editar Propiedad';
+  $('#prop-nombre').value = prop.propiedad_nombre || prop.nombre || '';
+  $('#prop-direccion').value = prop.direccion || '';
+  $('#prop-habitaciones').value = prop.habitaciones || prop.total_rooms || 1;
+  $('#prop-banos').value = prop.banos || prop.total_bathrooms || 1;
+  $('#prop-precio').value = prop.precio_limpieza || 45;
+  $('#prop-tiempo').value = prop.tiempo_limpieza || 90;
+  $('#prop-propietario').value = prop.propietario_id || '';
+  $('#prop-notas').value = prop.notas || '';
+  
+  // Poblar propietarios
+  const propSelect = $('#prop-propietario');
+  propSelect.innerHTML = '<option value="">Sin asignar</option>' + 
+    (S.propietarios || []).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+  if (prop.propietario_id) propSelect.value = prop.propietario_id;
+  
+  // Si es de integración, deshabilitar nombre
+  $('#prop-nombre').disabled = !isManual;
+  
+  openModal('modal-propiedad');
+}
+
+async function deletePropiedad(id) {
+  if (!confirm('¿Eliminar esta propiedad?')) return;
+  
+  try {
+    await remove(TBL.propiedades, id);
+    await loadAll();
+    renderPropiedades();
+    toast('Propiedad eliminada');
+  } catch (e) {
+    toast('Error al eliminar', 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TIEMPOS DE LIMPIEZA POR TIPOLOGÍA
+// ═══════════════════════════════════════════════════════════════════════════
+
+const propTiempos = {
+  modifiedIds: new Set(),
+  savedIds: new Set(),
+  originalValues: {},
+  
+  render() {
+    this.renderTipologias();
+    this.renderList();
+    this.populateFilters();
+  },
+  
+  getTipologias() {
+    const grupos = {};
+    (S.propiedades || []).forEach(p => {
+      const rooms = p.habitaciones || p.total_rooms || 0;
+      const baths = p.banos || p.total_bathrooms || 0;
+      const key = `${rooms}-${baths}`;
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push(p);
+      
+      // Guardar valor original
+      if (this.originalValues[p.id] === undefined) {
+        this.originalValues[p.id] = p.tiempo_limpieza || null;
+      }
+    });
+    return grupos;
+  },
+  
+  renderTipologias() {
+    const container = $('#tipologias-grid');
+    if (!container) return;
+    
+    const tipologias = this.getTipologias();
+    const keys = Object.keys(tipologias).sort((a, b) => {
+      const [rA, bA] = a.split('-').map(Number);
+      const [rB, bB] = b.split('-').map(Number);
+      return rA !== rB ? rA - rB : bA - bB;
+    });
+    
+    if (keys.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-muted);">No hay propiedades</p>';
+      return;
+    }
+    
+    container.innerHTML = keys.map(key => {
+      const [rooms, baths] = key.split('-');
+      const count = tipologias[key].length;
+      return `
+        <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <span style="font-weight:600;">🛏️ ${rooms} + 🚿 ${baths}</span>
+            <span style="font-size:0.8rem; color:var(--text-muted);">${count} props</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <input type="number" id="tipo-${key}" class="form-input" placeholder="min" min="15" step="15" style="width:80px;">
+            <button class="btn btn-sm btn-primary" onclick="propTiempos.applyToTipo('${key}')">Aplicar</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+  
+  applyToTipo(key) {
+    const input = $(`#tipo-${key}`);
+    const value = parseInt(input.value);
+    const [targetRooms, targetBaths] = key.split('-').map(Number);
+    
+    if (!value || value < 15) {
+      toast('Tiempo mínimo: 15 minutos', 'error');
+      return;
+    }
+    
+    let count = 0;
+    S.propiedades.forEach(p => {
+      const rooms = p.habitaciones || p.total_rooms || 0;
+      const baths = p.banos || p.total_bathrooms || 0;
+      
+      if (rooms === targetRooms && baths === targetBaths) {
+        p.tiempo_limpieza = value;
+        this.modifiedIds.add(p.id);
+        this.savedIds.delete(p.id);
+        count++;
+      }
+    });
+    
+    this.renderList();
+    toast(`✅ ${value} min aplicado a ${count} propiedades`);
+    input.value = '';
+  },
+  
+  renderList() {
+    const container = $('#times-list');
+    if (!container) return;
+    
+    const search = ($('#times-search')?.value || '').toLowerCase();
+    const tipoFilter = $('#times-filter-tipo')?.value || '';
+    
+    let filtered = (S.propiedades || []).filter(p => {
+      const name = (p.propiedad_nombre || p.nombre || '').toLowerCase();
+      if (search && !name.includes(search)) return false;
+      
+      if (tipoFilter) {
+        const rooms = p.habitaciones || p.total_rooms || 0;
+        const baths = p.banos || p.total_bathrooms || 0;
+        if (`${rooms}-${baths}` !== tipoFilter) return false;
+      }
+      
+      return true;
+    });
+    
+    if (filtered.length === 0) {
+      container.innerHTML = '<p style="text-align:center; padding:20px; color:var(--text-muted);">No hay propiedades</p>';
+      return;
+    }
+    
+    container.innerHTML = filtered.map(p => {
+      const nombre = p.propiedad_nombre || p.nombre || 'Sin nombre';
+      const rooms = p.habitaciones || p.total_rooms || 0;
+      const baths = p.banos || p.total_bathrooms || 0;
+      const tiempo = p.tiempo_limpieza || '';
+      const isModified = this.modifiedIds.has(p.id);
+      const isSaved = this.savedIds.has(p.id);
+      
+      let statusHtml = '<span style="color:var(--text-muted);">—</span>';
+      let rowStyle = '';
+      if (isSaved) {
+        statusHtml = '<span style="color:#10b981;">✅</span>';
+        rowStyle = 'background:#ecfdf5;';
+      } else if (isModified) {
+        statusHtml = '<span style="color:#f59e0b;">⏳</span>';
+        rowStyle = 'background:#fffbeb;';
+      }
+      
+      return `
+        <div style="display:grid; grid-template-columns:1fr 100px 100px 80px 80px; gap:8px; padding:10px 12px; border-bottom:1px solid var(--border); align-items:center; ${rowStyle}">
+          <span style="font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nombre}</span>
+          <span style="text-align:center;">🛏️ ${rooms}</span>
+          <span style="text-align:center;">🚿 ${baths}</span>
+          <input type="number" class="form-input" value="${tiempo}" placeholder="—" min="15" step="15" 
+                 style="text-align:center; padding:6px;" onchange="propTiempos.updateProp('${p.id}', this.value)">
+          <div style="text-align:center;">${statusHtml}</div>
+        </div>
+      `;
+    }).join('');
+  },
+  
+  filter() {
+    this.renderList();
+  },
+  
+  populateFilters() {
+    const select = $('#times-filter-tipo');
+    if (!select) return;
+    
+    const tipologias = this.getTipologias();
+    const keys = Object.keys(tipologias).sort((a, b) => {
+      const [rA, bA] = a.split('-').map(Number);
+      const [rB, bB] = b.split('-').map(Number);
+      return rA !== rB ? rA - rB : bA - bB;
+    });
+    
+    select.innerHTML = '<option value="">Todas las tipologías</option>' +
+      keys.map(key => {
+        const [rooms, baths] = key.split('-');
+        const count = tipologias[key].length;
+        return `<option value="${key}">🛏️ ${rooms} + 🚿 ${baths} (${count})</option>`;
+      }).join('');
+  },
+  
+  updateProp(id, value) {
+    const prop = S.propiedades.find(p => p.id === id);
+    if (!prop) return;
+    
+    const newValue = value ? parseInt(value) : null;
+    prop.tiempo_limpieza = newValue;
+    
+    if (newValue != this.originalValues[id]) {
+      this.modifiedIds.add(id);
+      this.savedIds.delete(id);
+    } else {
+      this.modifiedIds.delete(id);
+    }
+    
+    this.renderList();
+  },
+  
+  resetChanges() {
+    if (!confirm('¿Descartar todos los cambios no guardados?')) return;
+    
+    S.propiedades.forEach(p => {
+      if (this.originalValues[p.id] !== undefined) {
+        p.tiempo_limpieza = this.originalValues[p.id];
+      }
+    });
+    this.modifiedIds.clear();
+    this.savedIds.clear();
+    this.renderList();
+    toast('Cambios descartados');
+  },
+  
+  async saveAll() {
+    if (this.modifiedIds.size === 0) {
+      toast('No hay cambios para guardar', 'error');
+      return;
+    }
+    
+    const btn = $('#btn-save-times');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Guardando...';
+    }
+    
+    try {
+      for (const id of this.modifiedIds) {
+        const prop = S.propiedades.find(p => p.id === id);
+        if (prop) {
+          await update(TBL.propiedades, id, { tiempo_limpieza: prop.tiempo_limpieza });
+          this.savedIds.add(id);
+          this.originalValues[id] = prop.tiempo_limpieza;
+        }
+      }
+      
+      const count = this.modifiedIds.size;
+      this.modifiedIds.clear();
+      this.renderList();
+      toast(`✅ ${count} propiedades actualizadas`);
+      
+    } catch (e) {
+      console.error(e);
+      toast('Error al guardar: ' + e.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '💾 Guardar Todo';
+      }
+    }
+  }
+};
 
 function renderPropietarios() {
   $('#propietarios-grid').innerHTML = S.propietarios.length ? S.propietarios.map(p => `
