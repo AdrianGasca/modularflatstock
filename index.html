@@ -625,7 +625,7 @@
         <div class="card">
           <div class="card-header">
             <h3 class="card-title">👥 Equipo</h3>
-            <button class="btn btn-primary" onclick="openModal('modal-empleado')">+ Nuevo Empleado</button>
+            <button class="btn btn-primary" onclick="newEmpleado()">+ Nuevo Empleado</button>
           </div>
           <div id="empleados-grid" class="grid-cards"></div>
         </div>
@@ -1285,27 +1285,77 @@ Selecciona un tipo de informe y haz clic en generar para ver la vista previa.
 
 <!-- Modal Empleado -->
 <div id="modal-empleado" class="modal-overlay">
-  <div class="modal">
+  <div class="modal" style="max-width: 500px;">
     <div class="modal-header">
       <h3 class="modal-title">👥 Nuevo Empleado</h3>
       <button class="modal-close" onclick="closeModal('modal-empleado')">×</button>
     </div>
     <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">Nombre *</label>
-        <input type="text" id="emp-nombre" class="form-input">
+      <input type="hidden" id="emp-edit-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nombre *</label>
+          <input type="text" id="emp-nombre" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="emp-email" class="form-input">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Teléfono</label>
+          <input type="tel" id="emp-telefono" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rol</label>
+          <select id="emp-rol" class="form-input">
+            <option value="limpiador">Limpiador</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Tipo Contrato</label>
+          <select id="emp-tipo" class="form-input">
+            <option value="Externo">Externo</option>
+            <option value="Fijo">Fijo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rating ★</label>
+          <select id="emp-rating" class="form-input">
+            <option value="5">★★★★★ (5)</option>
+            <option value="4">★★★★☆ (4)</option>
+            <option value="3" selected>★★★☆☆ (3)</option>
+            <option value="2">★★☆☆☆ (2)</option>
+            <option value="1">★☆☆☆☆ (1)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Horas Máx/Semana</label>
+          <input type="number" id="emp-horas" class="form-input" value="40" min="1" max="60">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Precio/Hora (€)</label>
+          <input type="number" id="emp-precio" class="form-input" value="15" min="0" step="0.5">
+        </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Email *</label>
-        <input type="email" id="emp-email" class="form-input">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Rol</label>
-        <select id="emp-rol" class="form-input">
-          <option value="limpiador">Limpiador</option>
-          <option value="supervisor">Supervisor</option>
-          <option value="admin">Admin</option>
-        </select>
+        <label class="form-label">Días Libres (recurrentes)</label>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px;">
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="emp-dia-0" value="0"> Dom</label>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="emp-dia-1" value="1"> Lun</label>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="emp-dia-2" value="2"> Mar</label>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="emp-dia-3" value="3"> Mié</label>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="emp-dia-4" value="4"> Jue</label>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="emp-dia-5" value="5"> Vie</label>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="emp-dia-6" value="6"> Sáb</label>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
