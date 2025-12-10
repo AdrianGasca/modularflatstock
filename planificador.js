@@ -960,7 +960,7 @@ class PlannerApp {
     if (!confirm(confirmMsg)) return;
     
     // Preparar vista actual
-    const viewName = this.view === 'd' ? 'día' : (this.view === 'w' ? 'semana' : 'mes');
+    const viewName = this.view === 'day' ? 'día' : (this.view === 'week' ? 'semana' : 'mes');
     const dateStr = this.formatDateRange();
     
     this.toast('📤 Enviando mensajes...');
@@ -1015,24 +1015,33 @@ class PlannerApp {
   }
   
   formatDateRange() {
-    const d = this.currentDate;
+    const d = this.date instanceof Date ? this.date : new Date();
     const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
                         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    
-    if (this.view === 'd') {
+
+    if (this.view === 'day') {
       return `${dayNames[d.getDay()]} ${d.getDate()} de ${monthNames[d.getMonth()]}`;
-    } else if (this.view === 'w') {
+    } else if (this.view === 'week') {
       const start = new Date(d);
-      start.setDate(d.getDate() - d.getDay() + 1);
+      // Lunes como inicio de semana
+      const day = start.getDay();
+      const diffToMonday = (day === 0 ? -6 : 1) - day;
+      start.setDate(start.getDate() + diffToMonday);
+
       const end = new Date(start);
       end.setDate(start.getDate() + 6);
+
+      // Si cruza de mes, mostramos ambos meses para claridad
+      if (start.getMonth() !== end.getMonth()) {
+        return `${start.getDate()} ${monthNames[start.getMonth()].slice(0,3)} - ${end.getDate()} ${monthNames[end.getMonth()].slice(0,3)}`;
+      }
+
       return `${start.getDate()}-${end.getDate()} de ${monthNames[start.getMonth()]}`;
     } else {
       return `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
     }
   }
-  
   buildMessageForCleaner(emp, viewName, dateStr) {
     let msg = `🏠 *SERVICIOS ASIGNADOS*\n`;
     msg += `📅 ${dateStr}\n`;
