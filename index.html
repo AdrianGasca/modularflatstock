@@ -472,7 +472,7 @@
         <div class="card">
           <div class="card-header">
             <h3 class="card-title">📅 Servicios de Limpieza</h3>
-            <button class="btn btn-primary" onclick="openModal('modal-servicio')">+ Nuevo Servicio</button>
+            <button class="btn btn-primary" onclick="newServicio()">+ Nuevo Servicio</button>
           </div>
           <div class="filters-bar">
             <input type="date" id="serv-fecha" onchange="renderServicios()">
@@ -600,12 +600,66 @@
 
       <!-- PROPIEDADES -->
       <div id="view-propiedades" class="view">
-        <div class="card">
+        <!-- Tabs -->
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <button class="btn" id="tab-props-list" onclick="switchPropTab('list')" style="background:var(--primary); color:white;">📋 Listado</button>
+          <button class="btn btn-secondary" id="tab-props-times" onclick="switchPropTab('times')">⏱️ Tiempos de Limpieza</button>
+        </div>
+        
+        <!-- Tab: Listado -->
+        <div id="props-tab-list" class="card">
           <div class="card-header">
             <h3 class="card-title">🏠 Propiedades</h3>
-            <button class="btn btn-primary" onclick="openModal('modal-propiedad')">+ Nueva Propiedad</button>
+            <button class="btn btn-primary" onclick="newPropiedad()">+ Nueva Propiedad</button>
           </div>
-          <div id="propiedades-grid" class="grid-cards"></div>
+          <div class="filters-bar" style="padding:12px 16px; border-bottom:1px solid var(--border);">
+            <input type="text" id="props-search" class="form-input" placeholder="🔍 Buscar..." style="max-width:250px;" oninput="renderPropiedades()">
+            <select id="props-filter-source" class="form-input" style="max-width:180px;" onchange="renderPropiedades()">
+              <option value="">Todas las fuentes</option>
+              <option value="manual">📝 Manuales</option>
+              <option value="integration">🔗 Integración</option>
+            </select>
+          </div>
+          <div id="propiedades-grid" class="grid-cards" style="padding:16px;"></div>
+        </div>
+        
+        <!-- Tab: Tiempos de Limpieza -->
+        <div id="props-tab-times" class="card" style="display:none;">
+          <div class="card-header">
+            <h3 class="card-title">⏱️ Tiempos por Tipología</h3>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-secondary" onclick="propTiempos.resetChanges()">↩️ Descartar</button>
+              <button class="btn btn-primary" id="btn-save-times" onclick="propTiempos.saveAll()">💾 Guardar Todo</button>
+            </div>
+          </div>
+          <div style="padding:16px;">
+            <p style="color:var(--text-muted); margin-bottom:16px;">Define tiempos estándar por combinación de habitaciones + baños, o ajusta individualmente.</p>
+            
+            <!-- Tipologías -->
+            <div style="margin-bottom:24px;">
+              <h4 style="margin-bottom:12px; font-size:1rem;">🏠 Tipologías (Habitaciones + Baños)</h4>
+              <div id="tipologias-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px;"></div>
+            </div>
+            
+            <!-- Lista individual -->
+            <div>
+              <h4 style="margin-bottom:12px; font-size:1rem;">📋 Propiedades Individuales</h4>
+              <div class="filters-bar" style="margin-bottom:12px;">
+                <input type="text" id="times-search" class="form-input" placeholder="🔍 Buscar..." style="max-width:200px;" oninput="propTiempos.filter()">
+                <select id="times-filter-tipo" class="form-input" style="max-width:200px;" onchange="propTiempos.filter()">
+                  <option value="">Todas las tipologías</option>
+                </select>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 100px 100px 80px 80px; gap:8px; padding:8px 12px; font-size:0.8rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">
+                <span>Propiedad</span>
+                <span style="text-align:center;">Hab.</span>
+                <span style="text-align:center;">Baños</span>
+                <span style="text-align:center;">Tiempo</span>
+                <span style="text-align:center;">Estado</span>
+              </div>
+              <div id="times-list" style="max-height:400px; overflow-y:auto;"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1088,6 +1142,11 @@ Selecciona un tipo de informe y haz clic en generar para ver la vista previa.
           <label class="form-label">Hora Inicio</label>
           <input type="time" id="serv-hora" class="form-input" value="11:00">
         </div>
+        <div class="form-group">
+          <label class="form-label">Duración (min)</label>
+          <input type="number" id="serv-duracion" class="form-input" value="" placeholder="Auto" min="15" step="15">
+          <small style="color:var(--text-muted); font-size:0.75rem;">Vacío = usar tiempo de la propiedad</small>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -1231,19 +1290,57 @@ Selecciona un tipo de informe y haz clic en generar para ver la vista previa.
 
 <!-- Modal Propiedad -->
 <div id="modal-propiedad" class="modal-overlay">
-  <div class="modal">
+  <div class="modal" style="max-width:550px;">
     <div class="modal-header">
-      <h3 class="modal-title">🏠 Nueva Propiedad</h3>
+      <h3 class="modal-title" id="prop-modal-title">🏠 Nueva Propiedad</h3>
       <button class="modal-close" onclick="closeModal('modal-propiedad')">×</button>
     </div>
     <div class="modal-body">
+      <input type="hidden" id="prop-edit-id">
+      <input type="hidden" id="prop-source">
+      
       <div class="form-group">
         <label class="form-label">Nombre *</label>
         <input type="text" id="prop-nombre" class="form-input" placeholder="Apartamento Centro">
       </div>
+      
       <div class="form-group">
-        <label class="form-label">Precio Limpieza (€)</label>
-        <input type="number" id="prop-precio" class="form-input" value="45" step="0.01">
+        <label class="form-label">Dirección</label>
+        <input type="text" id="prop-direccion" class="form-input" placeholder="Calle Mayor 15, 3B">
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Habitaciones</label>
+          <input type="number" id="prop-habitaciones" class="form-input" value="1" min="0" step="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Baños</label>
+          <input type="number" id="prop-banos" class="form-input" value="1" min="0" step="1">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Precio Limpieza (€)</label>
+          <input type="number" id="prop-precio" class="form-input" value="45" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tiempo Limpieza (min)</label>
+          <input type="number" id="prop-tiempo" class="form-input" value="90" step="15" min="15">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Propietario</label>
+        <select id="prop-propietario" class="form-input">
+          <option value="">Sin asignar</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Notas</label>
+        <textarea id="prop-notas" class="form-input" rows="2" placeholder="Notas internas..."></textarea>
       </div>
     </div>
     <div class="modal-footer">
