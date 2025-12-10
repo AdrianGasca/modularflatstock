@@ -84,21 +84,41 @@ async function savePropietario() {
 }
 
 async function saveEmpleado() {
+  // Obtener días libres seleccionados
+  const diasLibres = [];
+  for (let i = 0; i <= 6; i++) {
+    if ($(`#emp-dia-${i}`)?.checked) diasLibres.push(i.toString());
+  }
+  
   const data = {
     email_host: S.clienteEmail,
     nombre: $('#emp-nombre').value.trim(),
-    email: $('#emp-email').value.trim(),
+    email: $('#emp-email').value.trim() || null,
+    telefono: $('#emp-telefono').value.trim() || null,
     rol: $('#emp-rol').value,
+    tipo: $('#emp-tipo').value,
+    rating: parseFloat($('#emp-rating').value) || 3,
+    horas_maximas: parseInt($('#emp-horas').value) || 40,
+    precio_hora: parseFloat($('#emp-precio').value) || 15,
+    dias_libres: diasLibres.length > 0 ? diasLibres : null,
     activo: true
   };
-  if (!data.nombre || !data.email) return toast('Nombre y email obligatorios', 'error');
+  if (!data.nombre) return toast('Nombre obligatorio', 'error');
   
+  const editId = $('#emp-edit-id')?.value;
   closeModal('modal-empleado');
-  await create(TBL.empleados, data);
+  
+  if (editId) {
+    await update(TBL.empleados, editId, data);
+    toast('Empleado actualizado');
+  } else {
+    await create(TBL.empleados, data);
+    toast('Empleado creado');
+  }
+  
   await loadAll();
   renderEmpleados();
   initFilters();
-  toast('Empleado creado');
 }
 
 async function saveKit() {
@@ -262,4 +282,3 @@ async function delGasto(id) {
   await loadAll();
   renderGastos();
 }
-
