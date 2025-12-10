@@ -364,10 +364,10 @@ class PlannerApp {
     try {
       // Usar empleados de S si están disponibles
       if (S.empleados && S.empleados.length > 0) {
-        this.cleaners = S.empleados.map(e => ({
+        this.cleaners = S.empleados.filter(e => e.activo).map(e => ({
           id: e.id,
-          name: e.nombre || e.empleado_nombre || 'Sin Nombre',
-          offs: [],
+          name: e.nombre || 'Sin Nombre',
+          offs: (e.dias_libres || []).map(d => parseInt(d)),
           type: e.tipo || 'Externo',
           rating: e.rating || 3,
           maxHours: e.horas_maximas || 40,
