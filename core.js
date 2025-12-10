@@ -260,7 +260,7 @@ function navigate(view) {
 }
 
 function renderView(v) {
-  const renders = { dashboard:renderDashboard, servicios:renderServicios, reservas:renderReservas, stock:renderStock, kits:renderKits, propiedades:renderPropiedades, propietarios:renderPropietarios, empleados:renderEmpleados, limpiezas:renderLimpiezasMes, consumos:renderConsumos, extras:renderExtras, mantenimiento:renderMantenimiento, gastos:renderGastos, informes:renderInformes, alertas:renderAlertas, integraciones:renderIntegraciones };
+  const renders = { dashboard:renderDashboard, servicios:renderServicios, reservas:renderReservas, stock:renderStock, kits:renderKits, propiedades:renderPropiedades, propietarios:renderPropietarios, empleados:renderEmpleados, limpiezas:renderLimpiezasMes, consumos:renderConsumos, extras:renderExtras, mantenimiento:renderMantenimiento, gastos:renderGastos, informes:renderInformes, alertas:renderAlertas, integraciones:renderIntegraciones, planificador:renderPlanificador };
   renders[v]?.();
 }
 
