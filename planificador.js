@@ -111,6 +111,7 @@ const PLANNER_HTML = `
       <button id="pl-btn-block-mode" class="pl-btn btn-block-mode"><span>🚫 Bloqueos</span></button>
       <button id="pl-btn-auto" class="pl-btn btn-ai"><span>✨ Auto-Asignar</span></button>
       <button id="pl-btn-fast" class="pl-btn" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none;"><span>⚡ Rápido</span></button>
+      <button id="pl-btn-send" class="pl-btn" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; border: none;"><span>📲 Enviar</span></button>
       <button id="pl-btn-reset" class="pl-btn"><span>🗑️ Reset</span></button>
       <div class="pl-views">
         <button class="pl-view-btn" data-view="month">Mes</button>
@@ -260,6 +261,7 @@ class PlannerApp {
     document.getElementById('pl-btn-block-mode').onclick = () => this.toggleBlockMode();
     document.getElementById('pl-btn-auto').onclick = () => this.els.aiModal.classList.add('open');
     document.getElementById('pl-btn-fast').onclick = () => this.runFastOptimize();
+    document.getElementById('pl-btn-send').onclick = () => this.sendToCleaners();
     document.getElementById('pl-btn-reset').onclick = () => this.unassignAll();
     
     // Modal asignar
@@ -292,6 +294,7 @@ class PlannerApp {
       this.cleaners = S.empleados.filter(e => e.activo !== false).map(e => ({
         id: e.id,
         name: e.nombre || 'Sin Nombre',
+        phone: e.telefono || null,
         offs: (e.dias_libres || []).map(d => parseInt(d)),
         type: e.tipo || 'Externo',
         rating: e.rating || 3,
@@ -301,7 +304,7 @@ class PlannerApp {
     } else {
       this.cleaners = [];
     }
-    this.cleaners.unshift({ id: '', name: 'Sin Asignar', offs: [], type: '', rating: 0, maxHours: 999, price: 0 });
+    this.cleaners.unshift({ id: '', name: 'Sin Asignar', phone: null, offs: [], type: '', rating: 0, maxHours: 999, price: 0 });
   }
 
   setView(v) {
@@ -404,9 +407,13 @@ class PlannerApp {
       return fecha >= start && fecha < end;
     }).map(srv => {
       const emp = S.empleados?.find(e => e.id === srv.empleado_id);
+      const prop = S.propiedades?.find(p => p.id === srv.propiedad_id);
       return {
         id: srv.id,
-        propiedad: srv.propiedad_nombre || 'Sin Propiedad',
+        propiedad: srv.propiedad_nombre || prop?.nombre || 'Sin Propiedad',
+        property: srv.propiedad_nombre || prop?.nombre || 'Sin Propiedad',
+        direccion: prop?.direccion || srv.direccion || null,
+        date: srv.fecha_servicio,
         fecha: srv.fecha_servicio,
         hora: srv.hora_inicio || '10:00',
         duracion: srv.duracion_minutos || 60,
@@ -900,6 +907,177 @@ class PlannerApp {
     await this.loadData();
     this.refreshUI();
     this.toast(`✅ ${assigned} tareas asignadas`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENVIAR WHATSAPP A LIMPIADORES
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  async sendToCleaners() {
+    // Agrupar tareas por empleado
+    const tasksByEmployee = {};
+    
+    this.tasks.forEach(t => {
+      if (t.empleado_id) {
+        if (!tasksByEmployee[t.empleado_id]) {
+          tasksByEmployee[t.empleado_id] = {
+            empleado_id: t.empleado_id,
+            empleado_nombre: t.empleado_nombre || 'Sin nombre',
+            tasks: []
+          };
+        }
+        tasksByEmployee[t.empleado_id].tasks.push(t);
+      }
+    });
+    
+    const empleadosConTareas = Object.values(tasksByEmployee);
+    
+    if (empleadosConTareas.length === 0) {
+      this.toast('No hay tareas asignadas para enviar', true);
+      return;
+    }
+    
+    // Obtener teléfonos de empleados
+    const cleanersWithPhone = this.cleaners.filter(c => c.id && c.phone);
+    const phoneMap = {};
+    cleanersWithPhone.forEach(c => {
+      phoneMap[c.id] = c.phone.replace(/\D/g, ''); // Solo números
+    });
+    
+    // Confirmar envío
+    const sinTelefono = empleadosConTareas.filter(e => !phoneMap[e.empleado_id]);
+    let confirmMsg = `📲 Enviar WhatsApp a ${empleadosConTareas.length} limpiador(es)?\n\n`;
+    
+    empleadosConTareas.forEach(e => {
+      const phone = phoneMap[e.empleado_id];
+      confirmMsg += `• ${e.empleado_nombre}: ${e.tasks.length} servicio(s) ${phone ? '✅' : '❌ sin teléfono'}\n`;
+    });
+    
+    if (sinTelefono.length > 0) {
+      confirmMsg += `\n⚠️ ${sinTelefono.length} empleado(s) sin teléfono registrado`;
+    }
+    
+    if (!confirm(confirmMsg)) return;
+    
+    // Preparar vista actual
+    const viewName = this.view === 'd' ? 'día' : (this.view === 'w' ? 'semana' : 'mes');
+    const dateStr = this.formatDateRange();
+    
+    this.toast('📤 Enviando mensajes...');
+    
+    let enviados = 0;
+    let errores = 0;
+    
+    for (const emp of empleadosConTareas) {
+      const phone = phoneMap[emp.empleado_id];
+      if (!phone) continue;
+      
+      // Construir mensaje
+      const message = this.buildMessageForCleaner(emp, viewName, dateStr);
+      
+      try {
+        const response = await fetch('https://app.builderbot.cloud/api/v2/62268a68-ccd0-49e6-998e-f75ae75498d8/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-builderbot': 'bb-8773bbe1-5116-422d-b891-80795a4f6358'
+          },
+          body: JSON.stringify({
+            messages: {
+              content: message
+            },
+            number: phone,
+            checkIfExists: false
+          })
+        });
+        
+        if (response.ok) {
+          enviados++;
+          console.log(`✅ Mensaje enviado a ${emp.empleado_nombre} (${phone})`);
+        } else {
+          errores++;
+          console.error(`❌ Error enviando a ${emp.empleado_nombre}:`, await response.text());
+        }
+      } catch (err) {
+        errores++;
+        console.error(`❌ Error enviando a ${emp.empleado_nombre}:`, err);
+      }
+      
+      // Pequeña pausa entre mensajes para no saturar la API
+      await new Promise(r => setTimeout(r, 500));
+    }
+    
+    if (errores > 0) {
+      this.toast(`📲 Enviados: ${enviados} | Errores: ${errores}`, true);
+    } else {
+      this.toast(`✅ ${enviados} mensaje(s) enviado(s)`);
+    }
+  }
+  
+  formatDateRange() {
+    const d = this.currentDate;
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    
+    if (this.view === 'd') {
+      return `${dayNames[d.getDay()]} ${d.getDate()} de ${monthNames[d.getMonth()]}`;
+    } else if (this.view === 'w') {
+      const start = new Date(d);
+      start.setDate(d.getDate() - d.getDay() + 1);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      return `${start.getDate()}-${end.getDate()} de ${monthNames[start.getMonth()]}`;
+    } else {
+      return `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    }
+  }
+  
+  buildMessageForCleaner(emp, viewName, dateStr) {
+    let msg = `🏠 *SERVICIOS ASIGNADOS*\n`;
+    msg += `📅 ${dateStr}\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    msg += `👤 *${emp.empleado_nombre}*\n\n`;
+    
+    // Ordenar tareas por fecha y hora
+    const sortedTasks = [...emp.tasks].sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.hora || '00:00').localeCompare(b.hora || '00:00');
+    });
+    
+    // Agrupar por fecha
+    const byDate = {};
+    sortedTasks.forEach(t => {
+      if (!byDate[t.date]) byDate[t.date] = [];
+      byDate[t.date].push(t);
+    });
+    
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    
+    Object.entries(byDate).forEach(([date, tasks]) => {
+      const d = new Date(date + 'T12:00:00');
+      msg += `📆 *${dayNames[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}*\n`;
+      
+      tasks.forEach(t => {
+        const hora = t.hora ? `⏰ ${t.hora.substring(0, 5)}` : '';
+        const duracion = t.duracion ? ` (${Math.floor(t.duracion / 60)}h${t.duracion % 60 ? t.duracion % 60 + 'm' : ''})` : '';
+        const tipo = t.tipo === 'checkout' ? '🔴' : (t.tipo === 'checkin' ? '🟢' : '🔵');
+        
+        msg += `${tipo} ${t.property}${hora ? ' ' + hora : ''}${duracion}\n`;
+        
+        // Añadir dirección si existe
+        if (t.direccion) {
+          msg += `   📍 ${t.direccion}\n`;
+        }
+      });
+      msg += `\n`;
+    });
+    
+    msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `Total: ${emp.tasks.length} servicio(s)\n`;
+    msg += `\n_Mensaje automático de CleanManager_`;
+    
+    return msg;
   }
 
   async runAutoAssign() {
