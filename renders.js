@@ -187,15 +187,92 @@ function renderPropietarios() {
 }
 
 function renderEmpleados() {
-  $('#empleados-grid').innerHTML = S.empleados.length ? S.empleados.map(e => `
-    <div class="item-card">
+  $('#empleados-grid').innerHTML = S.empleados.length ? S.empleados.map(e => {
+    const diasLibresStr = (e.dias_libres || []).map(d => ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][parseInt(d)]).join(', ');
+    return `
+    <div class="item-card" style="cursor:pointer;" onclick="editEmpleado('${e.id}')">
       <div class="item-card-header">
         <div class="item-card-title">${e.nombre}</div>
-        <span class="badge ${e.activo ? 'badge-success' : 'badge-neutral'}">${e.activo ? 'Activo' : 'Inactivo'}</span>
+        <div style="display:flex; gap:6px; align-items:center;">
+          ${e.tipo === 'Fijo' ? '<span class="badge" style="background:#dbeafe;color:#1e40af;">Fijo</span>' : '<span class="badge badge-neutral">Externo</span>'}
+          <span class="badge ${e.activo ? 'badge-success' : 'badge-neutral'}">${e.activo ? 'Activo' : 'Inactivo'}</span>
+        </div>
       </div>
-      <div class="item-card-meta">${e.email || ''}</div>
+      <div class="item-card-meta" style="display:flex; flex-direction:column; gap:4px;">
+        ${e.email ? `<span>📧 ${e.email}</span>` : ''}
+        ${e.telefono ? `<span>📱 ${e.telefono}</span>` : ''}
+        <span>⭐ ${e.rating || 3} · ⏱ ${e.horas_maximas || 40}h/sem · 💶 ${e.precio_hora || 15}€/h</span>
+        ${diasLibresStr ? `<span style="color:var(--text-muted);">🗓️ Libres: ${diasLibresStr}</span>` : ''}
+      </div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); editEmpleado('${e.id}')">✏️ Editar</button>
+        <button class="btn btn-sm" style="background:#fee2e2; color:#b91c1c;" onclick="event.stopPropagation(); deleteEmpleado('${e.id}')">🗑️</button>
+        <button class="btn btn-sm" onclick="event.stopPropagation(); toggleEmpleadoActivo('${e.id}', ${!e.activo})">${e.activo ? '⏸️ Desactivar' : '▶️ Activar'}</button>
+      </div>
     </div>
-  `).join('') : empty('👥', 'Sin empleados');
+  `}).join('') : empty('👥', 'Sin empleados');
+}
+
+function newEmpleado() {
+  $('#emp-edit-id').value = '';
+  $('#emp-nombre').value = '';
+  $('#emp-email').value = '';
+  $('#emp-telefono').value = '';
+  $('#emp-rol').value = 'limpiador';
+  $('#emp-tipo').value = 'Externo';
+  $('#emp-rating').value = '3';
+  $('#emp-horas').value = '40';
+  $('#emp-precio').value = '15';
+  for (let i = 0; i <= 6; i++) {
+    const cb = $(`#emp-dia-${i}`);
+    if (cb) cb.checked = false;
+  }
+  openModal('modal-empleado');
+}
+
+function editEmpleado(id) {
+  const e = S.empleados.find(x => x.id === id);
+  if (!e) return;
+  
+  $('#emp-edit-id').value = id;
+  $('#emp-nombre').value = e.nombre || '';
+  $('#emp-email').value = e.email || '';
+  $('#emp-telefono').value = e.telefono || '';
+  $('#emp-rol').value = e.rol || 'limpiador';
+  $('#emp-tipo').value = e.tipo || 'Externo';
+  $('#emp-rating').value = e.rating || 3;
+  $('#emp-horas').value = e.horas_maximas || 40;
+  $('#emp-precio').value = e.precio_hora || 15;
+  
+  // Limpiar checkboxes
+  for (let i = 0; i <= 6; i++) {
+    const cb = $(`#emp-dia-${i}`);
+    if (cb) cb.checked = false;
+  }
+  // Marcar días libres
+  (e.dias_libres || []).forEach(d => {
+    const cb = $(`#emp-dia-${d}`);
+    if (cb) cb.checked = true;
+  });
+  
+  openModal('modal-empleado');
+}
+
+async function deleteEmpleado(id) {
+  if (!confirm('¿Eliminar este empleado?')) return;
+  await remove(TBL.empleados, id);
+  await loadAll();
+  renderEmpleados();
+  initFilters();
+  toast('Empleado eliminado');
+}
+
+async function toggleEmpleadoActivo(id, activo) {
+  await update(TBL.empleados, id, { activo });
+  await loadAll();
+  renderEmpleados();
+  initFilters();
+  toast(activo ? 'Empleado activado' : 'Empleado desactivado');
 }
 
 function renderExtras() {
