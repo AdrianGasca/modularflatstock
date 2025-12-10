@@ -16,7 +16,7 @@ const TBL = {
   mantenimiento: 'mantenimiento',
   extras: 'limpieza_extras',
   propiedades: 'propiedades_config',
-  empleados: 'empleados',
+  empleados: 'empleados_cleanmanager',
   alertas: 'alertas_config'
 };
 
