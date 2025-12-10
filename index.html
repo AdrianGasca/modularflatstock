@@ -394,6 +394,9 @@
       <div class="nav-item" data-view="informes" onclick="navigate('informes')">
         <span class="nav-icon">📄</span> Informes
       </div>
+      <div class="nav-item" data-view="planificador" onclick="navigate('planificador')">
+        <span class="nav-icon">📅</span> Planificador
+      </div>
 
       <div class="nav-section">Sistema</div>
       <div class="nav-item" data-view="integraciones" onclick="navigate('integraciones')">
@@ -1036,6 +1039,14 @@ Selecciona un tipo de informe y haz clic en generar para ver la vista previa.
         </div>
       </div>
 
+      <!-- PLANIFICADOR -->
+      <div id="view-planificador" class="view">
+        <div class="view-header">
+          <h1 class="view-title">📅 Planificador Pro</h1>
+        </div>
+        <div id="planner-container"></div>
+      </div>
+
     </div>
   </main>
 </div>
@@ -1578,6 +1589,7 @@ Selecciona un tipo de informe y haz clic en generar para ver la vista previa.
 <script src="/consumos.js"></script>
 <script src="/saves.js"></script>
 <script src="/integraciones.js"></script>
+<script src="/planificador.js"></script>
 <script src="/alertas.js"></script>
 </body>
 </html>
