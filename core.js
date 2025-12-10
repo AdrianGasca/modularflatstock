@@ -102,7 +102,13 @@ async function loadAll() {
     } catch { return []; }
   };
   
-  [S.servicios, S.inventario, S.kits, S.propietarios, S.gastos, S.mantenimiento, S.extras, S.propiedades, S.empleados, S.reservas, S.credenciales, S.propertyMappings] = await Promise.all([
+  // Cargar propiedades de ambas fuentes
+  const [propConfig, propIntegradas] = await Promise.all([
+    load(TBL.propiedades),
+    load('v_propiedades')  // Propiedades de integración
+  ]);
+  
+  [S.servicios, S.inventario, S.kits, S.propietarios, S.gastos, S.mantenimiento, S.extras, , S.empleados, S.reservas, S.credenciales, S.propertyMappings] = await Promise.all([
     load(TBL.servicios),
     load(TBL.inventario),
     load(TBL.kits),
@@ -110,13 +116,31 @@ async function loadAll() {
     load(TBL.gastos),
     load(TBL.mantenimiento),
     load(TBL.extras),
-    load(TBL.propiedades),
-    // ✅ empleados_cleanmanager filtrado por email_host
+    Promise.resolve([]), // placeholder
     load(TBL.empleados, 'email_host'),
     load(TBL.reservas),
     load(TBL.credenciales),
     load(TBL.propertyMapping)
   ]);
+  
+  // Combinar propiedades: config + integradas (evitando duplicados)
+  const configNames = new Set(propConfig.map(p => (p.propiedad_nombre || '').toLowerCase()));
+  const integradasNuevas = propIntegradas.filter(p => {
+    const nombre = (p.propiedad_nombre || '').toLowerCase();
+    return !configNames.has(nombre);
+  }).map(p => ({
+    ...p,
+    source: 'integration',
+    external_id: p.avaibook_accommodation_id || p.external_id,
+    habitaciones: p.total_rooms || 1,
+    banos: p.total_bathrooms || 1
+  }));
+  
+  // Marcar las de config como manuales
+  S.propiedades = [
+    ...propConfig.map(p => ({ ...p, source: 'manual' })),
+    ...integradasNuevas
+  ];
   
   const alertas = await load(TBL.alertas);
   S.alertas = alertas[0] || null;
@@ -287,9 +311,8 @@ async function create(tbl, data) {
   });
 }
 
-// ✅ AÑADIDO: update y remove (los usas en empleados y planificador)
 async function update(tbl, id, data) {
-  return fetch(`${API}/supa/patch/${tbl}?id=eq.${id}`, {
+  return fetch(`${API}/supa/update/${tbl}/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -297,7 +320,7 @@ async function update(tbl, id, data) {
 }
 
 async function remove(tbl, id) {
-  return fetch(`${API}/supa/delete/${tbl}?id=eq.${id}`, {
+  return fetch(`${API}/supa/delete/${tbl}/${id}`, {
     method: 'DELETE'
   });
 }
@@ -408,8 +431,3 @@ function empty(icon, text) {
 window.initApp = initApp;
 window.navigate = navigate;
 window.loadAll = loadAll;
-
-// ✅ opcional pero útil
-window.create = create;
-window.update = update;
-window.remove = remove;
