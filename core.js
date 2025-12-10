@@ -111,6 +111,7 @@ async function loadAll() {
     load(TBL.mantenimiento),
     load(TBL.extras),
     load(TBL.propiedades),
+    // ✅ empleados_cleanmanager filtrado por email_host
     load(TBL.empleados, 'email_host'),
     load(TBL.reservas),
     load(TBL.credenciales),
@@ -286,6 +287,21 @@ async function create(tbl, data) {
   });
 }
 
+// ✅ AÑADIDO: update y remove (los usas en empleados y planificador)
+async function update(tbl, id, data) {
+  return fetch(`${API}/supa/patch/${tbl}?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+}
+
+async function remove(tbl, id) {
+  return fetch(`${API}/supa/delete/${tbl}?id=eq.${id}`, {
+    method: 'DELETE'
+  });
+}
+
 function openModal(id) {
   document.getElementById(id).classList.add('open');
   
@@ -392,3 +408,8 @@ function empty(icon, text) {
 window.initApp = initApp;
 window.navigate = navigate;
 window.loadAll = loadAll;
+
+// ✅ opcional pero útil
+window.create = create;
+window.update = update;
+window.remove = remove;
